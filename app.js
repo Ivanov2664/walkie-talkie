@@ -1,353 +1,386 @@
-const SUPABASE_URL = "https://jvxnoegbzyfovwajgclr.supabase.co/rest/v1/";
-const SUPABASE_KEY = "sb_publishable_fWf3r8eLAPq0W3bFKNu-bw_vlhtDYIB";
+// ======================================================
+// SUPABASE CONFIG
+// ======================================================
 
-const supabaseClient = supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
-);
+const SUPABASE_URL =
+    "https://jvxnoegbzyfovwajgclr.supabase.co/rest/v1/";
 
-let localStream = null;
-let peerConnections = {};
-let myId = crypto.randomUUID();
+const SUPABASE_KEY =
+    "sb_publishable_fWf3r8eLAPq0W3bFKNu-bw_vlhtDYIB";
 
-let currentChannelName = "";
+
+const supabaseClient =
+    supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+    );
+
+
+// ======================================================
+// USER DATA
+// ======================================================
+
+const myId =
+    crypto.randomUUID();
+
 let myUsername = "";
 
-const connectButton = document.getElementById("connect");
-const disconnectButton = document.getElementById("disconnect");
-const pttButton = document.getElementById("pushToTalk");
+let currentChannelName = "";
 
-const channelInput = document.getElementById("channel");
-const usernameInput = document.getElementById("username");
+let localStream = null;
 
-const radio = document.getElementById("radio");
-const currentChannel = document.getElementById("currentChannel");
-const userList = document.getElementById("userList");
-const status = document.getElementById("status");
+let isTalking = false;
 
 
-// 🎙️ МИКРОФОН
-async function getMicrophone() {
+// ======================================================
+// HTML
+// ======================================================
 
-    try {
+const loginScreen =
+    document.getElementById(
+        "loginScreen"
+    );
 
-        localStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true
-            },
-            video: false
-        });
+const radioScreen =
+    document.getElementById(
+        "radioScreen"
+    );
 
-        // Започваме със заглушен микрофон
-        localStream.getAudioTracks().forEach(track => {
-            track.enabled = false;
-        });
+const usernameInput =
+    document.getElementById(
+        "username"
+    );
 
-        console.log("🎙️ Микрофонът е готов");
+const channelInput =
+    document.getElementById(
+        "channel"
+    );
 
-    } catch (error) {
+const connectButton =
+    document.getElementById(
+        "connect"
+    );
 
-        console.error(error);
+const disconnectButton =
+    document.getElementById(
+        "disconnect"
+    );
 
-        alert(
-            "Не може да се използва микрофонът. Разреши достъп до микрофона."
-        );
+const currentChannel =
+    document.getElementById(
+        "currentChannel"
+    );
 
-        throw error;
-    }
-}
+const userList =
+    document.getElementById(
+        "userList"
+    );
 
+const status =
+    document.getElementById(
+        "status"
+    );
 
-// 🔊 НОВ WEBRTC CONNECTION
-function createPeerConnection(userId) {
+const ptt =
+    document.getElementById(
+        "ptt"
+    );
 
-    const pc = new RTCPeerConnection({
-        iceServers: [
-            {
-                urls: "stun:stun.l.google.com:19302"
-            }
-        ]
-    });
+const pttText =
+    document.getElementById(
+        "pttText"
+    );
 
-    peerConnections[userId] = pc;
+const talking =
+    document.getElementById(
+        "talking"
+    );
 
 
-    // Добавяме микрофона
-    if (localStream) {
+// ======================================================
+// LOAD USERS
+// ======================================================
 
-        localStream.getTracks().forEach(track => {
+async function loadUsers() {
 
-            pc.addTrack(
-                track,
-                localStream
-            );
+    console.log(
+        "Зареждам канал:",
+        currentChannelName
+    );
 
-        });
 
-    }
+    const {
+        data,
+        error
+    } =
+        await supabaseClient
 
-
-    // Получаваме аудио
-    pc.ontrack = event => {
-
-        let audio = document.getElementById(
-            "audio-" + userId
-        );
-
-        if (!audio) {
-
-            audio = document.createElement("audio");
-
-            audio.id = "audio-" + userId;
-
-            audio.autoplay = true;
-
-            audio.playsInline = true;
-
-            document.body.appendChild(audio);
-
-        }
-
-        audio.srcObject = event.streams[0];
-
-    };
-
-
-    // ICE candidates
-    pc.onicecandidate = async event => {
-
-        if (!event.candidate) return;
-
-        await sendSignal(
-            userId,
-            "candidate",
-            event.candidate
-        );
-
-    };
-
-
-    return pc;
-}
-
-
-// 📡 ИЗПРАЩАНЕ НА SIGNAL
-async function sendSignal(
-    receiverId,
-    type,
-    message
-) {
-
-    await supabaseClient
-        .from("radio_signaling")
-        .insert({
-
-            channel: currentChannelName,
-
-            sender_id: myId,
-
-            receiver_id: receiverId,
-
-            message_type: type,
-
-            message: message
-
-        });
-
-}
-
-
-// 📡 ПОЛУЧАВАНЕ НА SIGNAL
-function listenForSignals() {
-
-    supabaseClient
-        .channel("radio-" + currentChannelName)
-        .on(
-            "postgres_changes",
-            {
-                event: "INSERT",
-                schema: "public",
-                table: "radio_signaling",
-                filter:
-                    `channel=eq.${currentChannelName}`
-            },
-            async payload => {
-
-                const data = payload.new;
-
-
-                // Не обработваме собствените си съобщения
-                if (data.sender_id === myId) {
-                    return;
-                }
-
-
-                // Ако е предназначено за друг
-                if (
-                    data.receiver_id &&
-                    data.receiver_id !== myId
-                ) {
-                    return;
-                }
-
-
-                await handleSignal(data);
-
-            }
-        )
-        .subscribe();
-
-}
-
-
-// 🔄 ОБРАБОТКА НА SIGNAL
-async function handleSignal(data) {
-
-    const senderId = data.sender_id;
-
-    let pc = peerConnections[senderId];
-
-    if (!pc) {
-
-        pc = createPeerConnection(senderId);
-
-    }
-
-
-    if (data.message_type === "offer") {
-
-        await pc.setRemoteDescription(
-            new RTCSessionDescription(
-                data.message
+            .from(
+                "radio_users"
             )
-        );
 
-
-        const answer =
-            await pc.createAnswer();
-
-
-        await pc.setLocalDescription(
-            answer
-        );
-
-
-        await sendSignal(
-            senderId,
-            "answer",
-            answer
-        );
-
-    }
-
-
-    else if (data.message_type === "answer") {
-
-        await pc.setRemoteDescription(
-            new RTCSessionDescription(
-                data.message
+            .select(
+                "id, username, channel"
             )
-        );
 
-    }
+            .eq(
+                "channel",
+                currentChannelName
+            )
 
-
-    else if (data.message_type === "candidate") {
-
-        try {
-
-            await pc.addIceCandidate(
-                new RTCIceCandidate(
-                    data.message
-                )
+            .order(
+                "created_at",
+                {
+                    ascending: true
+                }
             );
 
-        } catch (error) {
-
-            console.error(
-                "ICE error:",
-                error
-            );
-
-        }
-
-    }
-
-}
-
-
-// 📞 СВЪРЗВАНЕ С ДРУГИТЕ
-async function connectToUsers() {
-
-    const { data, error } = await supabaseClient
-        .from("radio_users")
-        .select("*")
-        .eq("channel", currentChannelName)
-        .neq("id", myId);
 
     if (error) {
-        console.error("Грешка при намиране на потребители:", error);
+
+        console.error(
+            "Грешка radio_users:",
+            error
+        );
+
+        userList.innerHTML =
+            "❌ Грешка при зареждането.";
+
         return;
+
     }
+
+
+    console.log(
+        "Намерени потребители:",
+        data
+    );
+
+
+    renderUsers(
+        data || []
+    );
+
+}
+
+
+// ======================================================
+// DISPLAY USERS
+// ======================================================
+
+function renderUsers(users) {
 
     userList.innerHTML = "";
 
-    if (!data || data.length === 0) {
-        userList.innerHTML = "👤 Сам си в канала";
+
+    if (
+        users.length === 0
+    ) {
+
+        userList.innerHTML =
+            "Няма потребители.";
+
         return;
+
     }
 
-    data.forEach(user => {
 
-        const div = document.createElement("div");
+    users.forEach(
+        user => {
 
-        div.textContent = "🟢 " + user.username;
+            const div =
+                document.createElement(
+                    "div"
+                );
 
-        div.style.padding = "6px 0";
 
-        userList.appendChild(div);
+            div.className =
+                "user";
 
-    });
 
-    for (const user of data) {
+            const isMe =
+                user.id === myId;
 
-        if (peerConnections[user.id]) {
-            continue;
+
+            div.innerHTML =
+                `
+                <span class="online">
+                    🟢
+                </span>
+
+                <span>
+                    ${escapeHtml(
+                        user.username
+                    )}
+
+                    ${
+                        isMe
+                            ? " (ти)"
+                            : ""
+                    }
+                </span>
+                `;
+
+
+            userList.appendChild(
+                div
+            );
+
         }
+    );
 
-        const pc = createPeerConnection(user.id);
-
-        const offer = await pc.createOffer();
-
-        await pc.setLocalDescription(offer);
-
-        await sendSignal(
-            user.id,
-            "offer",
-            offer
-        );
-    }
 }
 
 
-// 🔗 CONNECT
+// ======================================================
+// REALTIME USERS
+// ======================================================
+
+let usersRealtime = null;
+
+
+function startUsersRealtime() {
+
+    usersRealtime =
+        supabaseClient
+
+            .channel(
+                "users-" +
+                myId
+            )
+
+            .on(
+
+                "postgres_changes",
+
+                {
+                    event: "*",
+
+                    schema: "public",
+
+                    table:
+                        "radio_users"
+
+                },
+
+                payload => {
+
+                    console.log(
+                        "Realtime:",
+                        payload
+                    );
+
+
+                    // Проверяваме
+                    // отново нашия канал
+
+                    loadUsers();
+
+                }
+
+            )
+
+            .subscribe(
+                state => {
+
+                    console.log(
+                        "Realtime state:",
+                        state
+                    );
+
+                }
+            );
+
+}
+
+
+// ======================================================
+// MICROPHONE
+// ======================================================
+
+async function enableMicrophone() {
+
+    try {
+
+        localStream =
+            await navigator.mediaDevices
+                .getUserMedia({
+
+                    audio: {
+
+                        echoCancellation:
+                            true,
+
+                        noiseSuppression:
+                            true,
+
+                        autoGainControl:
+                            true
+
+                    },
+
+                    video: false
+
+                });
+
+
+        // В началото е mute
+
+        localStream
+            .getAudioTracks()
+            .forEach(
+                track => {
+
+                    track.enabled =
+                        false;
+
+                }
+            );
+
+
+        console.log(
+            "🎙️ Микрофонът е готов"
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Microphone error:",
+            error
+        );
+
+
+        throw new Error(
+            "Няма достъп до микрофона."
+        );
+
+    }
+
+}
+
+
+// ======================================================
+// JOIN CHANNEL
+// ======================================================
+
 connectButton.addEventListener(
     "click",
     async () => {
 
-        const channel =
-            channelInput.value.trim();
-
         const username =
-            usernameInput.value.trim();
+            usernameInput.value
+                .trim();
+
+        const channel =
+            channelInput.value
+                .trim();
 
 
-        if (!channel || !username) {
+        if (!username) {
 
             alert(
-                "Въведи име и канал!"
+                "Въведи име."
             );
 
             return;
@@ -355,108 +388,263 @@ connectButton.addEventListener(
         }
 
 
-        currentChannelName =
-            channel;
+        if (!channel) {
 
-        myUsername =
-            username;
-
-
-        try {
-
-            await getMicrophone();
-
-        } catch {
+            alert(
+                "Въведи канал."
+            );
 
             return;
 
         }
 
 
-        currentChannel.textContent =
-            currentChannelName;
+        connectButton.disabled =
+            true;
 
 
-        userList.innerHTML =
-            "👤 " + myUsername;
+        try {
+
+            // Микрофон
+
+            await enableMicrophone();
 
 
-        radio.classList.remove(
-            "hidden"
-        );
+            myUsername =
+                username;
+
+            currentChannelName =
+                channel;
 
 
-        status.textContent =
-            "🟢 Свързан";
+            console.log(
+                "Влизам в:",
+                currentChannelName
+            );
 
 
-        listenForSignals();
+            // Ако старият user
+            // съществува
+
+            await supabaseClient
+
+                .from(
+                    "radio_users"
+                )
+
+                .delete()
+
+                .eq(
+                    "id",
+                    myId
+                );
 
 
-        await supabaseClient
-    .from("radio_users")
-    .insert({
-        id: myId,
-        username: myUsername,
-        channel: currentChannelName
-    });
+            // Записваме потребителя
 
-        // Даваме малко време
-        // за откриване на другите
-        setTimeout(
-            connectToUsers,
-            1000
-        );
+            const {
+                error
+            } =
+                await supabaseClient
+
+                    .from(
+                        "radio_users"
+                    )
+
+                    .insert({
+
+                        id:
+                            myId,
+
+                        username:
+                            myUsername,
+
+                        channel:
+                            currentChannelName
+
+                    });
+
+
+            if (error) {
+
+                throw error;
+
+            }
+
+
+            // UI
+
+            currentChannel.textContent =
+                currentChannelName;
+
+
+            loginScreen.classList.add(
+                "hidden"
+            );
+
+
+            radioScreen.classList.remove(
+                "hidden"
+            );
+
+
+            status.textContent =
+                "🟢 В канал " +
+                currentChannelName;
+
+
+            // Зареждаме хората
+
+            await loadUsers();
+
+
+            // Realtime
+
+            startUsersRealtime();
+
+
+        } catch (error) {
+
+            console.error(
+                error
+            );
+
+
+            alert(
+                error.message ||
+                "Възникна грешка."
+            );
+
+
+            if (localStream) {
+
+                localStream
+                    .getTracks()
+                    .forEach(
+                        track =>
+                            track.stop()
+                    );
+
+                localStream =
+                    null;
+
+            }
+
+        }
+
+
+        connectButton.disabled =
+            false;
 
     }
 );
 
 
-// 🎙️ PTT - НАТИСНИ
+// ======================================================
+// PTT START
+// ======================================================
+
 function startTalking() {
 
-    if (!localStream) return;
+    if (
+        !localStream ||
+        isTalking
+    ) {
+
+        return;
+
+    }
+
+
+    isTalking = true;
 
 
     localStream
         .getAudioTracks()
-        .forEach(track => {
+        .forEach(
+            track => {
 
-            track.enabled = true;
+                track.enabled =
+                    true;
 
-        });
+            }
+        );
 
 
-    pttButton.innerHTML =
-        "🔴<span>ГОВОРИШ...</span>";
+    ptt.classList.add(
+        "talking"
+    );
+
+
+    pttText.textContent =
+        "ГОВОРИШ...";
+
+
+    talking.textContent =
+        "🔴 Говориш";
+
+
+    talking.classList.add(
+        "active"
+    );
 
 }
 
 
-// 🎙️ PTT - ПУСНИ
+// ======================================================
+// PTT STOP
+// ======================================================
+
 function stopTalking() {
 
-    if (!localStream) return;
+    if (!localStream) {
+
+        return;
+
+    }
+
+
+    isTalking = false;
 
 
     localStream
         .getAudioTracks()
-        .forEach(track => {
+        .forEach(
+            track => {
 
-            track.enabled = false;
+                track.enabled =
+                    false;
 
-        });
+            }
+        );
 
 
-    pttButton.innerHTML =
-        "🎙️<span>ЗАДРЪЖ И ГОВОРИ</span>";
+    ptt.classList.remove(
+        "talking"
+    );
+
+
+    pttText.textContent =
+        "ЗАДРЪЖ И ГОВОРИ";
+
+
+    talking.textContent =
+        "Готов за разговор";
+
+
+    talking.classList.remove(
+        "active"
+    );
 
 }
 
 
-// 📱 TOUCH
-pttButton.addEventListener(
-    "touchstart",
+// ======================================================
+// PTT MOUSE
+// ======================================================
+
+ptt.addEventListener(
+    "mousedown",
     event => {
 
         event.preventDefault();
@@ -467,8 +655,8 @@ pttButton.addEventListener(
 );
 
 
-pttButton.addEventListener(
-    "touchend",
+ptt.addEventListener(
+    "mouseup",
     event => {
 
         event.preventDefault();
@@ -479,46 +667,136 @@ pttButton.addEventListener(
 );
 
 
-// 🖱️ COMPUTER
-pttButton.addEventListener(
-    "mousedown",
-    startTalking
+ptt.addEventListener(
+    "mouseleave",
+    () => {
+
+        stopTalking();
+
+    }
 );
 
 
-pttButton.addEventListener(
-    "mouseup",
-    stopTalking
+// ======================================================
+// PTT TOUCH
+// ======================================================
+
+ptt.addEventListener(
+    "touchstart",
+    event => {
+
+        event.preventDefault();
+
+        startTalking();
+
+    },
+    {
+        passive: false
+    }
 );
 
 
-// 🚪 DISCONNECT
+ptt.addEventListener(
+    "touchend",
+    event => {
+
+        event.preventDefault();
+
+        stopTalking();
+
+    },
+    {
+        passive: false
+    }
+);
+
+
+ptt.addEventListener(
+    "touchcancel",
+    event => {
+
+        event.preventDefault();
+
+        stopTalking();
+
+    },
+    {
+        passive: false
+    }
+);
+
+
+// ======================================================
+// DISCONNECT
+// ======================================================
+
 disconnectButton.addEventListener(
     "click",
-    () => {
+    async () => {
+
+        stopTalking();
+
+
+        // Изтриваме потребителя
+
+        await supabaseClient
+
+            .from(
+                "radio_users"
+            )
+
+            .delete()
+
+            .eq(
+                "id",
+                myId
+            );
+
+
+        // Спираме realtime
+
+        if (
+            usersRealtime
+        ) {
+
+            await supabaseClient
+                .removeChannel(
+                    usersRealtime
+                );
+
+            usersRealtime =
+                null;
+
+        }
+
+
+        // Спираме микрофона
 
         if (localStream) {
 
             localStream
                 .getTracks()
-                .forEach(track =>
-                    track.stop()
+                .forEach(
+                    track =>
+                        track.stop()
                 );
+
+            localStream =
+                null;
 
         }
 
 
-        Object.values(
-            peerConnections
-        ).forEach(pc =>
-            pc.close()
+        currentChannelName =
+            "";
+
+
+        radioScreen.classList.add(
+            "hidden"
         );
 
 
-        peerConnections = {};
-
-
-        radio.classList.add(
+        loginScreen.classList.remove(
             "hidden"
         );
 
@@ -526,5 +804,32 @@ disconnectButton.addEventListener(
         status.textContent =
             "⚫ Няма връзка";
 
+
+        userList.innerHTML =
+            "";
+
+
+        channelInput.value =
+            "";
+
     }
 );
+
+
+// ======================================================
+// ESCAPE HTML
+// ======================================================
+
+function escapeHtml(text) {
+
+    const element =
+        document.createElement(
+            "div"
+        );
+
+    element.textContent =
+        text;
+
+    return element.innerHTML;
+
+}
