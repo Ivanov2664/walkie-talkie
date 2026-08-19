@@ -407,32 +407,13 @@ connectButton.addEventListener(
         listenForSignals();
 
 
-        // Записваме се в канала
         await supabaseClient
-            .from("radio_signaling")
-            .insert({
-
-                channel:
-                    currentChannelName,
-
-                sender_id:
-                    myId,
-
-                receiver_id:
-                    null,
-
-                message_type:
-                    "join",
-
-                message: {
-
-                    username:
-                        myUsername
-
-                }
-
-            });
-
+    .from("radio_users")
+    .insert({
+        id: myId,
+        username: myUsername,
+        channel: currentChannelName
+    });
 
         // Даваме малко време
         // за откриване на другите
