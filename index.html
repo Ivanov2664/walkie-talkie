@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>WalkieTalkie</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="app">
+
+    <header>
+        <h1>📻 WalkieTalkie</h1>
+        <span id="status">⚫ Няма връзка</span>
+    </header>
+
+    <main>
+
+        <div class="card">
+
+            <h2>Влез в канал</h2>
+
+            <input
+                type="text"
+                id="channel"
+                placeholder="Например 145500"
+                maxlength="20"
+            >
+
+            <input
+                type="text"
+                id="username"
+                placeholder="Твоето име"
+                maxlength="20"
+            >
+
+            <button id="connect">
+                🔗 Свържи се
+            </button>
+
+        </div>
+
+
+        <div id="radio" class="radio hidden">
+
+            <div class="channel">
+                <small>КАНАЛ</small>
+                <strong id="currentChannel">---</strong>
+            </div>
+
+            <div class="users">
+
+                <h3>👥 В канала</h3>
+
+                <div id="userList">
+                    Няма други потребители
+                </div>
+
+            </div>
+
+            <button id="pushToTalk" class="ptt">
+                🎙️
+                <span>ЗАДРЪЖ И ГОВОРИ</span>
+            </button>
+
+            <button id="disconnect" class="disconnect">
+                🚪 Напусни канала
+            </button>
+
+        </div>
+
+    </main>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
