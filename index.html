@@ -1,84 +1,173 @@
 <!DOCTYPE html>
 <html lang="bg">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>WalkieTalkie</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <link rel="stylesheet" href="style.css">
+    <meta
+        name="theme-color"
+        content="#0b1220"
+    >
+
+    <title>KRIS Radio</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
 </head>
+
 
 <body>
 
 <div class="app">
 
     <header>
-        <h1>📻 WalkieTalkie</h1>
-        <span id="status">⚫ Няма връзка</span>
+
+        <div class="logo">
+            📻 KRIS RADIO
+        </div>
+
+        <div id="status">
+            ⚫ Няма връзка
+        </div>
+
     </header>
 
-    <main>
 
-        <div class="card">
+    <!-- LOGIN -->
 
-            <h2>Влез в канал</h2>
+    <section
+        id="login"
+        class="card"
+    >
 
-            <input
-                type="text"
-                id="channel"
-                placeholder="Например 145500"
-                maxlength="20"
-            >
+        <h1>
+            Интернет Уоки-Токи
+        </h1>
 
-            <input
-                type="text"
-                id="username"
-                placeholder="Твоето име"
-                maxlength="20"
-            >
+        <p class="description">
+            Въведи име и номер на канал.
+        </p>
 
-            <button id="connect">
-                🔗 Свържи се
-            </button>
+
+        <label>
+            Твоето име
+        </label>
+
+        <input
+            id="username"
+            type="text"
+            placeholder="Например Kris"
+            maxlength="20"
+        >
+
+
+        <label>
+            Канал
+        </label>
+
+        <input
+            id="channel"
+            type="text"
+            placeholder="Например 145500"
+            maxlength="20"
+            autocomplete="off"
+        >
+
+
+        <button
+            id="connect"
+            class="primary"
+        >
+            🔗 Влез в канала
+        </button>
+
+    </section>
+
+
+    <!-- RADIO -->
+
+    <section
+        id="radio"
+        class="card radio hidden"
+    >
+
+        <div class="channel-box">
+
+            <span>
+                КАНАЛ
+            </span>
+
+            <strong id="currentChannel">
+                ---
+            </strong>
 
         </div>
 
 
-        <div id="radio" class="radio hidden">
+        <div class="users-box">
 
-            <div class="channel">
-                <small>КАНАЛ</small>
-                <strong id="currentChannel">---</strong>
+            <h2>
+                👥 В канала
+            </h2>
+
+            <div id="userList">
+                Зареждане...
             </div>
 
-            <div class="users">
+        </div>
 
-                <h3>👥 В канала</h3>
 
-                <div id="userList">
-                    Няма други потребители
-                </div>
+        <button
+            id="pushToTalk"
+            class="ptt"
+        >
 
-            </div>
-
-            <button id="pushToTalk" class="ptt">
+            <span class="mic">
                 🎙️
-                <span>ЗАДРЪЖ И ГОВОРИ</span>
-            </button>
+            </span>
 
-            <button id="disconnect" class="disconnect">
-                🚪 Напусни канала
-            </button>
+            <span>
+                ЗАДРЪЖ И ГОВОРИ
+            </span>
 
+        </button>
+
+
+        <div
+            id="talkingStatus"
+            class="talking-status"
+        >
+            Готов за разговор
         </div>
 
-    </main>
+
+        <button
+            id="disconnect"
+            class="disconnect"
+        >
+            🚪 Напусни канала
+        </button>
+
+    </section>
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script
+    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+></script>
+
 <script src="app.js"></script>
 
 </body>
+
 </html>
