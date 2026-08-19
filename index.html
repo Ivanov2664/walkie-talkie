@@ -12,18 +12,14 @@
 
     <meta
         name="theme-color"
-        content="#0b1220"
+        content="#07111f"
     >
 
-    <title>KRIS Radio</title>
+    <title>KRIS RADIO</title>
 
-    <link
-        rel="stylesheet"
-        href="style.css"
-    >
+    <link rel="stylesheet" href="style.css">
 
 </head>
-
 
 <body>
 
@@ -44,8 +40,8 @@
 
     <!-- LOGIN -->
 
-    <section
-        id="login"
+    <div
+        id="loginScreen"
         class="card"
     >
 
@@ -53,13 +49,13 @@
             Интернет Уоки-Токи
         </h1>
 
-        <p class="description">
-            Въведи име и номер на канал.
+        <p>
+            Въведи име и канал, за да се свържеш.
         </p>
 
 
         <label>
-            Твоето име
+            👤 Име
         </label>
 
         <input
@@ -71,15 +67,14 @@
 
 
         <label>
-            Канал
+            📻 Канал
         </label>
 
         <input
             id="channel"
             type="text"
             placeholder="Например 145500"
-            maxlength="20"
-            autocomplete="off"
+            maxlength="30"
         >
 
 
@@ -87,24 +82,24 @@
             id="connect"
             class="primary"
         >
-            🔗 Влез в канала
+            🔗 ВЛЕЗ В КАНАЛА
         </button>
 
-    </section>
+    </div>
 
 
     <!-- RADIO -->
 
-    <section
-        id="radio"
-        class="card radio hidden"
+    <div
+        id="radioScreen"
+        class="card hidden"
     >
 
-        <div class="channel-box">
+        <div class="channel">
 
-            <span>
+            <small>
                 КАНАЛ
-            </span>
+            </small>
 
             <strong id="currentChannel">
                 ---
@@ -113,7 +108,7 @@
         </div>
 
 
-        <div class="users-box">
+        <div class="members">
 
             <h2>
                 👥 В канала
@@ -127,15 +122,15 @@
 
 
         <button
-            id="pushToTalk"
+            id="ptt"
             class="ptt"
         >
 
-            <span class="mic">
+            <span class="pttIcon">
                 🎙️
             </span>
 
-            <span>
+            <span id="pttText">
                 ЗАДРЪЖ И ГОВОРИ
             </span>
 
@@ -143,8 +138,8 @@
 
 
         <div
-            id="talkingStatus"
-            class="talking-status"
+            id="talking"
+            class="talking"
         >
             Готов за разговор
         </div>
@@ -154,17 +149,15 @@
             id="disconnect"
             class="disconnect"
         >
-            🚪 Напусни канала
+            🚪 НАПУСНИ КАНАЛА
         </button>
 
-    </section>
+    </div>
 
 </div>
 
 
-<script
-    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
-></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script src="app.js"></script>
 
