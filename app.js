@@ -281,68 +281,54 @@ async function handleSignal(data) {
 // 📞 СВЪРЗВАНЕ С ДРУГИТЕ
 async function connectToUsers() {
 
-    const { data, error } =
-        await supabaseClient
-            .from("radio_signaling")
-            .select("sender_id")
-            .eq(
-                "channel",
-                currentChannelName
-            )
-            .neq(
-                "sender_id",
-                myId
-            );
-
+    const { data, error } = await supabaseClient
+        .from("radio_users")
+        .select("*")
+        .eq("channel", currentChannelName)
+        .neq("id", myId);
 
     if (error) {
-
-        console.error(error);
-
+        console.error("Грешка при намиране на потребители:", error);
         return;
-
     }
 
+    userList.innerHTML = "";
 
-    const users = [
-        ...new Set(
-            data.map(
-                user => user.sender_id
-            )
-        )
-    ];
+    if (!data || data.length === 0) {
+        userList.innerHTML = "👤 Сам си в канала";
+        return;
+    }
 
+    data.forEach(user => {
 
-    for (const userId of users) {
+        const div = document.createElement("div");
 
-        if (peerConnections[userId]) {
+        div.textContent = "🟢 " + user.username;
+
+        div.style.padding = "6px 0";
+
+        userList.appendChild(div);
+
+    });
+
+    for (const user of data) {
+
+        if (peerConnections[user.id]) {
             continue;
         }
 
+        const pc = createPeerConnection(user.id);
 
-        const pc =
-            createPeerConnection(
-                userId
-            );
+        const offer = await pc.createOffer();
 
-
-        const offer =
-            await pc.createOffer();
-
-
-        await pc.setLocalDescription(
-            offer
-        );
-
+        await pc.setLocalDescription(offer);
 
         await sendSignal(
-            userId,
+            user.id,
             "offer",
             offer
         );
-
     }
-
 }
 
 
